@@ -103,3 +103,7 @@ fn callback(allocator: mem.Allocator, line: []const u8) anyerror![]const u8 {
     try builder.dump(stream.writer());
     return stream.getWritten();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

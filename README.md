@@ -22,7 +22,7 @@ $ json2csv < account.csv
 [3,"account3","PR"]
 ```
 
-# package management
+## Package management
 
 Depends on:
 
@@ -39,3 +39,7 @@ LOCATION VERSION ENTRANCE
 `LOCATION` is a part of the repo url with schema stripped.  
 `VERSION` is a tag or a commit hash.
 `ENTRANCE` is a target zig file to `@import`, relative to the root of the repo.
+
+## Requirements
+
+- zig 0.10.0 or later
