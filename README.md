@@ -9,12 +9,12 @@ id,name,department
 2,account2,Dev
 4,account4,HR
 3,account3,PR
-$ json2csv -i < account.csv
+$ csv2json -i < account.csv
 {"id":1,"name":"account1","department":"HR"}
 {"id":2,"name":"account2","department":"Dev"}
 {"id":4,"name":"account4","department":"HR"}
 {"id":3,"name":"account3","department":"PR"}
-$ json2csv < account.csv
+$ csv2json < account.csv
 ["id","name","department"]
 [1,"account1","HR"]
 [2,"account2","Dev"]

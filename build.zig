@@ -25,7 +25,7 @@ pub fn build(b: *std.build.Builder) !void {
     var packages = try Packages.load(allocator, "requirements.txt", "libs");
     defer packages.deinit();
 
-    const exe = b.addExecutable("json2csv", "src/main.zig");
+    const exe = b.addExecutable("csv2json", "src/main.zig");
     for (packages.list.items) |item| exe.addPackagePath(item.name, item.pkg_index_path);
     exe.setTarget(target);
     exe.setBuildMode(mode);

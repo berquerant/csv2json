@@ -4,7 +4,7 @@ THISD=$(cd $(dirname $0);pwd)
 libsd=libs
 package_file=requirements.txt
 PACKAGE_FILE="${THISD}/${package_file}"
-LIBSD="${THISD}/{libsd}"
+LIBSD="${THISD}/${libsd}"
 
 usage() {
     cat - <<EOF
