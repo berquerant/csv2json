@@ -136,97 +136,60 @@ pub const Builder = struct {
     }
 };
 
-test "builder dump object header short" {
+fn testBuilderDump(
+    header_fields: ?[]const []const u8,
+    fields: []const []const u8,
+    want: []const u8,
+) !void {
     const allocator = testing.allocator;
 
-    var header = Header.init(allocator);
-    try header.append(.{ .String = "string" });
-    try header.append(.{ .String = "int" });
-
-    const string_value = try csv.FieldValue.parse(allocator, "str");
-    const int_value = try csv.FieldValue.parse(allocator, "128");
-    const float_value = try csv.FieldValue.parse(allocator, "12.8");
-    const null_value = try csv.FieldValue.parse(allocator, "");
+    var header: ?Header = null;
+    if (header_fields) |xs| {
+        header = Header.init(allocator);
+        for (xs) |x| try header.?.append(.{ .String = x });
+    }
 
     var builder = Builder.init(allocator, header);
     defer builder.deinit(true);
-    try builder.append(string_value);
-    try builder.append(int_value);
-    try builder.append(float_value);
-    try builder.append(null_value);
+    for (fields) |x| {
+        const v = try csv.FieldValue.parse(allocator, x);
+        try builder.append(v);
+    }
 
     var out_buffer: [256]u8 = undefined;
     var out_stream = std.io.fixedBufferStream(&out_buffer);
     try builder.dump(out_stream.writer());
-    try testing.expectEqualStrings("{\"string\":\"str\",\"int\":128}", out_stream.getWritten());
+    try testing.expectEqualStrings(want, out_stream.getWritten());
+}
+
+test "builder dump object header short" {
+    try testBuilderDump(
+        &[_][]const u8{ "string", "int" },
+        &[_][]const u8{ "str", "128", "12.8", "" },
+        "{\"string\":\"str\",\"int\":128}",
+    );
 }
 
 test "builder dump object" {
-    const allocator = testing.allocator;
-
-    var header = Header.init(allocator);
-    try header.append(.{ .String = "string" });
-    try header.append(.{ .String = "int" });
-    try header.append(.{ .String = "float" });
-    try header.append(.{ .String = "null" });
-
-    const string_value = try csv.FieldValue.parse(allocator, "str");
-    const int_value = try csv.FieldValue.parse(allocator, "128");
-    const float_value = try csv.FieldValue.parse(allocator, "12.8");
-    const null_value = try csv.FieldValue.parse(allocator, "");
-
-    var builder = Builder.init(allocator, header);
-    defer builder.deinit(true);
-    try builder.append(string_value);
-    try builder.append(int_value);
-    try builder.append(float_value);
-    try builder.append(null_value);
-
-    var out_buffer: [256]u8 = undefined;
-    var out_stream = std.io.fixedBufferStream(&out_buffer);
-    try builder.dump(out_stream.writer());
-    try testing.expectEqualStrings("{\"string\":\"str\",\"int\":128,\"float\":1.28e+01,\"null\":null}", out_stream.getWritten());
+    try testBuilderDump(
+        &[_][]const u8{ "string", "int", "float", "null" },
+        &[_][]const u8{ "str", "128", "12.8", "" },
+        "{\"string\":\"str\",\"int\":128,\"float\":1.28e+01,\"null\":null}",
+    );
 }
 
 test "builder dump object values short" {
-    const allocator = testing.allocator;
-
-    var header = Header.init(allocator);
-    try header.append(.{ .String = "string" });
-    try header.append(.{ .String = "int" });
-    try header.append(.{ .String = "float" });
-    try header.append(.{ .String = "null" });
-
-    const string_value = try csv.FieldValue.parse(allocator, "str");
-    const int_value = try csv.FieldValue.parse(allocator, "128");
-
-    var builder = Builder.init(allocator, header);
-    defer builder.deinit(true);
-    try builder.append(string_value);
-    try builder.append(int_value);
-
-    var out_buffer: [256]u8 = undefined;
-    var out_stream = std.io.fixedBufferStream(&out_buffer);
-    try builder.dump(out_stream.writer());
-    try testing.expectEqualStrings("{\"string\":\"str\",\"int\":128,\"float\":null,\"null\":null}", out_stream.getWritten());
+    try testBuilderDump(
+        &[_][]const u8{ "string", "int", "float", "null" },
+        &[_][]const u8{ "str", "128" },
+        "{\"string\":\"str\",\"int\":128,\"float\":null,\"null\":null}",
+    );
 }
 
 test "builder dump array" {
-    const allocator = testing.allocator;
-    const string_value = try csv.FieldValue.parse(allocator, "str");
-    const int_value = try csv.FieldValue.parse(allocator, "128");
-    const float_value = try csv.FieldValue.parse(allocator, "12.8");
-    const null_value = try csv.FieldValue.parse(allocator, "");
-
-    var builder = Builder.init(allocator, null);
-    defer builder.deinit(true);
-    try builder.append(string_value);
-    try builder.append(int_value);
-    try builder.append(float_value);
-    try builder.append(null_value);
-
-    var out_buffer: [256]u8 = undefined;
-    var out_stream = std.io.fixedBufferStream(&out_buffer);
-    try builder.dump(out_stream.writer());
-    try testing.expectEqualStrings("[\"str\",128,1.28e+01,null]", out_stream.getWritten());
+    try testBuilderDump(
+        null,
+        &[_][]const u8{ "str", "128", "12.8", "" },
+        "[\"str\",128,1.28e+01,null]",
+    );
 }

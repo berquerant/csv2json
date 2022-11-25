@@ -88,28 +88,31 @@ pub const FieldValue = struct {
     }
 };
 
-test "fieldvalue parse int" {
-    const got = try FieldValue.parse(testing.allocator, "123");
+const testing = std.testing;
+
+fn testFieldValueParse(input: []const u8, want: Value) !void {
+    const got = try FieldValue.parse(testing.allocator, input);
     defer got.deinit();
-    try testing.expectEqual(Value{ .Int = 123 }, got.value);
+    switch (want) {
+        .String => |w| try testing.expectEqualStrings(w, got.value.String),
+        else => try testing.expectEqual(want, got.value),
+    }
+}
+
+test "fieldvalue parse int" {
+    try testFieldValueParse("123", .{ .Int = 123 });
 }
 
 test "fieldvalue parse float" {
-    const got = try FieldValue.parse(testing.allocator, "123.4");
-    defer got.deinit();
-    try testing.expectEqual(Value{ .Float = 123.4 }, got.value);
+    try testFieldValueParse("123.4", .{ .Float = 123.4 });
 }
 
 test "fieldvalue parse string" {
-    const got = try FieldValue.parse(testing.allocator, "12a");
-    defer got.deinit();
-    try testing.expectEqualSlices(u8, "12a", got.value.String);
+    try testFieldValueParse("12a", .{ .String = "12a" });
 }
 
 test "fieldvalue parse null" {
-    const got = try FieldValue.parse(testing.allocator, "");
-    defer got.deinit();
-    try testing.expectEqual(Value.Null, got.value);
+    try testFieldValueParse("", .Null);
 }
 
 pub const Field = struct {
@@ -265,87 +268,53 @@ pub const FieldIterator = struct {
     }
 };
 
-const testing = std.testing;
+fn testFieldIterator(input: []const u8, want: []const []const u8, err: ?anyerror) !void {
+    var it = FieldIterator.init(input);
+    var i: usize = 0;
+    while (it.next()) |got| {
+        try testing.expect(i < want.len);
+        const w = want[i];
+        try testing.expectEqualStrings(w, got.raw);
+        i += 1;
+    }
+    try testing.expectEqual(i, want.len);
+    try testing.expectEqual(err, it.err);
+}
 
 test "split fields" {
-    const line = "aaa,10,c";
-    var it = FieldIterator.init(line);
-    try testing.expectEqualSlices(u8, "aaa", it.next().?.raw);
-    try testing.expectEqualSlices(u8, "10", it.next().?.raw);
-    try testing.expectEqualSlices(u8, "c", it.next().?.raw);
-    try testing.expect(it.next() == null);
-    try testing.expect(it.err == null);
+    try testFieldIterator("aaa,10,c", &[_][]const u8{ "aaa", "10", "c" }, null);
 }
 
 test "split quated fields" {
-    const line = "\"aaa,10,c\",X";
-    var it = FieldIterator.init(line);
-    try testing.expectEqualSlices(u8, "aaa,10,c", it.next().?.raw);
-    try testing.expectEqualSlices(u8, "X", it.next().?.raw);
-    try testing.expect(it.next() == null);
-    try testing.expect(it.err == null);
+    try testFieldIterator("\"aaa,10,c\",X", &[_][]const u8{ "aaa,10,c", "X" }, null);
 }
 
 test "split empty string" {
-    const line = "";
-    var it = FieldIterator.init(line);
-    try testing.expectEqualSlices(u8, "", it.next().?.raw);
-    try testing.expect(it.next() == null);
-    try testing.expect(it.err == null);
+    try testFieldIterator("", &[_][]const u8{""}, null);
 }
 
 test "split empty fields" {
-    const line = "a,,b,";
-    var it = FieldIterator.init(line);
-    try testing.expectEqualSlices(u8, "a", it.next().?.raw);
-    try testing.expectEqualSlices(u8, "", it.next().?.raw);
-    try testing.expectEqualSlices(u8, "b", it.next().?.raw);
-    try testing.expectEqualSlices(u8, "", it.next().?.raw);
-    try testing.expect(it.next() == null);
-    try testing.expect(it.err == null);
+    try testFieldIterator("a,,b,", &[_][]const u8{ "a", "", "b", "" }, null);
 }
 
 test "split quoated empty fields" {
-    const line = "a,\"\",b,\"\"";
-    var it = FieldIterator.init(line);
-    try testing.expectEqualSlices(u8, "a", it.next().?.raw);
-    try testing.expectEqualSlices(u8, "", it.next().?.raw);
-    try testing.expectEqualSlices(u8, "b", it.next().?.raw);
-    try testing.expectEqualSlices(u8, "", it.next().?.raw);
-    try testing.expect(it.next() == null);
-    try testing.expect(it.err == null);
+    try testFieldIterator("a,\"\",b,\"\"", &[_][]const u8{ "a", "", "b", "" }, null);
 }
 
 test "split quated line" {
-    const line = "\"a,b,c\"";
-    var it = FieldIterator.init(line);
-    try testing.expectEqualSlices(u8, "a,b,c", it.next().?.raw);
-    try testing.expect(it.next() == null);
-    try testing.expect(it.err == null);
+    try testFieldIterator("\"a,b,c\"", &[_][]const u8{"a,b,c"}, null);
 }
 
 test "split error quote in the middle" {
-    const line = "a,b\"d,c";
-    var it = FieldIterator.init(line);
-    try testing.expectEqualSlices(u8, "a", it.next().?.raw);
-    try testing.expect(it.next() == null);
-    try testing.expect(it.err.? == FieldIteratorError.QuoteInTheMiddle);
+    try testFieldIterator("a,b\"d,c", &[_][]const u8{"a"}, FieldIteratorError.QuoteInTheMiddle);
 }
 
 test "split error unbalanced quote" {
-    const line = "a,\"z\"x,c";
-    var it = FieldIterator.init(line);
-    try testing.expectEqualSlices(u8, "a", it.next().?.raw);
-    try testing.expect(it.next() == null);
-    try testing.expect(it.err.? == FieldIteratorError.QuoteUnbalanced);
+    try testFieldIterator("a,\"z\"x,c", &[_][]const u8{"a"}, FieldIteratorError.QuoteUnbalanced);
 }
 
 test "split escaped quote field" {
-    const line = "\"a,\"\"b,c\"";
-    var it = FieldIterator.init(line);
-    try testing.expectEqualSlices(u8, "a,\"\"b,c", it.next().?.raw);
-    try testing.expect(it.next() == null);
-    try testing.expect(it.err == null);
+    try testFieldIterator("\"a,\"\"b,c\"", &[_][]const u8{"a,\"\"b,c"}, null);
 }
 
 fn canonicalizeField(allocator: Allocator, raw: []const u8) ![]const u8 {
