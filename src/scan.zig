@@ -1,5 +1,4 @@
 const std = @import("std");
-const Allocator = std.mem.Allocator;
 
 pub fn Scanner(comptime ReaderType: type) type {
     return struct {
@@ -8,13 +7,12 @@ pub fn Scanner(comptime ReaderType: type) type {
 
         const Self = @This();
 
-        pub fn next(self: *Self, allocator: Allocator, max_size: usize) ?[]const u8 {
+        pub fn next(self: *Self, buf: []u8) ?[]const u8 {
             if (self.err) |_| return null;
 
-            return self.in_stream.readUntilDelimiterOrEofAlloc(
-                allocator,
+            return self.in_stream.readUntilDelimiterOrEof(
+                buf,
                 '\n',
-                max_size,
             ) catch |err| {
                 self.err = err;
                 return null;
@@ -42,18 +40,15 @@ test "scan" {
     ;
     comptime var in_stream = std.io.fixedBufferStream(lines);
     var scan_stream = scanner(in_stream.reader());
-    const allocator = std.testing.allocator;
-    const max_size = 255;
+    var buf: [255]u8 = undefined;
 
-    if (scan_stream.next(allocator, max_size)) |x| {
-        defer allocator.free(x);
+    if (scan_stream.next(&buf)) |x| {
         try testing.expectEqualSlices(u8, "first", x);
     } else try testing.expect(false);
-    if (scan_stream.next(allocator, max_size)) |x| {
-        defer allocator.free(x);
+    if (scan_stream.next(&buf)) |x| {
         try testing.expectEqualSlices(u8, "second", x);
     } else try testing.expect(false);
-    try testing.expect(scan_stream.next(allocator, max_size) == null);
-    try testing.expect(scan_stream.next(allocator, max_size) == null);
+    try testing.expect(scan_stream.next(&buf) == null);
+    try testing.expect(scan_stream.next(&buf) == null);
     try testing.expect(scan_stream.err == null);
 }

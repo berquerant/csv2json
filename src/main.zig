@@ -47,13 +47,13 @@ pub fn main() !void {
 
     comptime var scan_stream = scan.scanner(io.getStdIn().reader());
 
-    defer deinitHeader();
     if (res.args.header) {
-        if (scan_stream.next(allocator, buffer_size)) |line| {
-            defer allocator.free(line);
+        var buf: [read_buffer_size]u8 = undefined;
+        if (scan_stream.next(&buf)) |line| {
             try initHeader(allocator, line);
         } else return;
     }
+    defer deinitHeader();
 
     var out_stream = io.bufferedWriter(io.getStdOut().writer());
     defer out_stream.flush() catch {};
@@ -65,11 +65,17 @@ pub fn main() !void {
         callback,
         stdout,
         stderr,
-        .{ .exit_on_error = res.args.failfast },
+        .{
+            .exit_on_error = res.args.failfast,
+            .read_buffer_size = read_buffer_size,
+            .write_buffer_size = write_buffer_size,
+        },
     );
 }
 
-const buffer_size = 4096;
+const read_buffer_size = 4096;
+const write_buffer_size = 4096;
+
 var header: ?convert.Header = null;
 
 fn initHeader(allocator: mem.Allocator, line: []const u8) !void {
@@ -87,7 +93,11 @@ fn deinitHeader() void {
     if (header) |x| x.deinit();
 }
 
-fn callback(allocator: mem.Allocator, line: []const u8) anyerror![]const u8 {
+fn callback(buf: []u8, line: []const u8) anyerror![]const u8 {
+    var arena = heap.ArenaAllocator.init(heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
     var builder = convert.Builder.init(allocator, header);
     defer builder.deinit(false);
 
@@ -98,12 +108,12 @@ fn callback(allocator: mem.Allocator, line: []const u8) anyerror![]const u8 {
     }
     if (it.err) |err| return err;
 
-    var buffer = try allocator.alloc(u8, buffer_size);
-    var stream = io.fixedBufferStream(buffer);
+    var stream = io.fixedBufferStream(buf);
     try builder.dump(stream.writer());
     return stream.getWritten();
 }
 
 test {
     std.testing.refAllDecls(@This());
+    _ = @import("e2e_test.zig");
 }

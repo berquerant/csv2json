@@ -3,7 +3,7 @@ build: clean tidy
 	zig build -Drelease-fast=true
 
 .PHONY: build-safe
-build-debug:
+build-safe:
 	zig build
 
 .PHONY: run
