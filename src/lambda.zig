@@ -41,7 +41,7 @@ pub fn Lambda(
                 linum += 1;
                 log.debug("[Lambda] Line {d} - {s}", .{ linum, line });
 
-                const result = func(write_buf, line) catch |err| { // func allocates some output line
+                const result = func(write_buf, line) catch |err| {
                     log.debug("[Lambda] Line {d} func returned error {any}", .{ linum, err });
                     _ = err_stream.print("Line {d} {s} {any}\n", .{ linum, line, err }) catch {};
                     if (config.exit_on_error) return err;

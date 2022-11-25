@@ -17,12 +17,12 @@ test "end to end" {
         .{
             .title = "run",
             .args = .{},
-            .input =
+            .input = 
             \\x,y,z
             \\x1,y1,z1
             \\x2,y2,z2
             ,
-            .want =
+            .want = 
             \\["x","y","z"]
             \\["x1","y1","z1"]
             \\["x2","y2","z2"]
@@ -35,12 +35,12 @@ test "end to end" {
             .args = .{
                 .args = &[_][]const u8{"--header"},
             },
-            .input =
+            .input = 
             \\x,y,z
             \\x1,y1,z1
             \\x2,y2,z2
             ,
-            .want =
+            .want = 
             \\{"x":"x1","y":"y1","z":"z1"}
             \\{"x":"x2","y":"y2","z":"z2"}
             \\
@@ -50,12 +50,12 @@ test "end to end" {
         .{
             .title = "continue on fail",
             .args = .{},
-            .input =
+            .input = 
             \\x,y,z
             \\x1,y"1,z1
             \\x2,y2,z2
             ,
-            .want =
+            .want = 
             \\["x","y","z"]
             \\["x2","y2","z2"]
             \\
@@ -67,12 +67,12 @@ test "end to end" {
             .args = .{
                 .args = &[_][]const u8{"--failfast"},
             },
-            .input =
+            .input = 
             \\x,y,z
             \\x1,y"1,z1
             \\x2,y2,z2
             ,
-            .want =
+            .want = 
             \\["x","y","z"]
             \\
             ,
@@ -202,6 +202,7 @@ const Executable = struct {
         const stdin_filepath = try dir.realpathAlloc(allocator, stdin_filename);
         defer allocator.free(stdin_filepath);
 
+        // TODO: use process stdin
         var cat_proc = std.ChildProcess.init(&[_][]const u8{ "cat", stdin_filepath }, allocator);
         var main_proc = std.ChildProcess.init(argv, allocator);
 
