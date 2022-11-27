@@ -37,7 +37,7 @@ pub fn Lambda(
             var write_buf = try allocator.alloc(u8, config.write_buffer_size);
             defer allocator.free(write_buf);
 
-            while (self.scan_stream.next(read_buf)) |line| {
+            while (try self.scan_stream.next(read_buf)) |line| {
                 linum += 1;
                 log.debug("[Lambda] Line {d} - {s}", .{ linum, line });
 
@@ -58,10 +58,6 @@ pub fn Lambda(
                     if (config.exit_on_error) return err;
                     continue;
                 };
-            }
-
-            if (self.scan_stream.err) |err| {
-                return err;
             }
         }
     };

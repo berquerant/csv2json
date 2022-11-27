@@ -130,11 +130,9 @@ pub const Field = struct {
 };
 
 /// Yield csv fields.
-/// In the end, should check the `err` field that keeps an error during iteration.
 pub const FieldIterator = struct {
     buffer: []const u8,
     index: ?usize, // null means the end of the iterator
-    err: ?Error,
 
     const Self = @This();
     pub const Error = FieldIteratorError;
@@ -143,11 +141,17 @@ pub const FieldIterator = struct {
         return .{
             .buffer = buffer,
             .index = 0,
-            .err = null,
         };
     }
 
-    pub fn next(self: *Self) ?Field {
+    pub fn next(self: *Self) !?Field {
+        return self.doNext() catch |err| {
+            self.index = null; // terminate the iterator
+            return err;
+        };
+    }
+
+    fn doNext(self: *Self) !?Field {
         const start = self.index orelse return null;
         log.debug("[FieldIterator] start is [{s}][{d}] => {u} {any}", .{
             self.buffer,
@@ -160,8 +164,8 @@ pub const FieldIterator = struct {
 
         if (self.peekChar()) |c| {
             return switch (c) {
-                '"' => self.nextQuoated(start),
-                else => self.nextRaw(start),
+                '"' => try self.nextQuoated(start),
+                else => try self.nextRaw(start),
             };
         }
 
@@ -178,13 +182,12 @@ pub const FieldIterator = struct {
         };
     }
 
-    fn nextRaw(self: *Self, start: usize) ?Field {
+    fn nextRaw(self: *Self, start: usize) !?Field {
         while (self.getChar()) |c| {
             switch (c) {
                 '"' => {
                     // found quote but no left quote
-                    self.fail(Error.QuoteInTheMiddle);
-                    return null;
+                    return Error.QuoteInTheMiddle;
                 },
                 ',' => {
                     return .{
@@ -201,7 +204,7 @@ pub const FieldIterator = struct {
     }
 
     /// Cut a quoated csv field.
-    fn nextQuoated(self: *Self, start: usize) ?Field {
+    fn nextQuoated(self: *Self, start: usize) !?Field {
         assert(self.peekChar().? == '"');
         _ = self.getChar(); // ignore first '"'
 
@@ -214,8 +217,7 @@ pub const FieldIterator = struct {
                             .raw = self.slice(start + 1, self.index.? - 2),
                         },
                         else => {
-                            self.fail(Error.QuoteUnbalanced);
-                            return null;
+                            return Error.QuoteUnbalanced;
                         },
                     };
 
@@ -227,8 +229,7 @@ pub const FieldIterator = struct {
             }
         }
         // right quote not found
-        self.fail(Error.QuoteUnbalanced);
-        return null;
+        return Error.QuoteUnbalanced;
     }
 
     /// Returns the previous char, keep the index.
@@ -255,12 +256,6 @@ pub const FieldIterator = struct {
         return null;
     }
 
-    /// Set `self.err` and terminate the iterator.
-    fn fail(self: *Self, err: Error) void {
-        self.err = err;
-        self.index = null;
-    }
-
     /// Cut `self.buffer`.
     fn slice(self: *const Self, start: usize, end: usize) []const u8 {
         log.debug("[FieldIterator] slice [{s}][{d}..{d}] => {s}", .{ self.buffer, start, end, self.buffer[start..end] });
@@ -271,14 +266,19 @@ pub const FieldIterator = struct {
 fn testFieldIterator(input: []const u8, want: []const []const u8, err: ?anyerror) !void {
     var it = FieldIterator.init(input);
     var i: usize = 0;
-    while (it.next()) |got| {
+
+    while (it.next() catch |got_err| {
+        try testing.expectEqual(err, got_err);
+        try testing.expectEqual(i, want.len);
+        return;
+    }) |got| {
         try testing.expect(i < want.len);
         const w = want[i];
         try testing.expectEqualStrings(w, got.raw);
         i += 1;
     }
     try testing.expectEqual(i, want.len);
-    try testing.expectEqual(err, it.err);
+    try testing.expect(err == null);
 }
 
 test "split fields" {

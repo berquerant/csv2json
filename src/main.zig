@@ -49,7 +49,7 @@ pub fn main() !void {
 
     if (res.args.header) {
         var buf: [read_buffer_size]u8 = undefined;
-        if (scan_stream.next(&buf)) |line| {
+        if (try scan_stream.next(&buf)) |line| {
             try initHeader(allocator, line);
         } else return;
     }
@@ -81,12 +81,11 @@ var header: ?convert.Header = null;
 fn initHeader(allocator: mem.Allocator, line: []const u8) !void {
     header = convert.Header.init(allocator);
     var it = csv.FieldIterator.init(line);
-    while (it.next()) |item| {
+    while (try it.next()) |item| {
         const value = try item.string(allocator);
         defer value.deinit();
         try header.?.append(value.value);
     }
-    if (it.err) |err| return err;
 }
 
 fn deinitHeader() void {
@@ -102,11 +101,10 @@ fn callback(buf: []u8, line: []const u8) anyerror![]const u8 {
     defer builder.deinit(false);
 
     var it = csv.FieldIterator.init(line);
-    while (it.next()) |item| {
+    while (try it.next()) |item| {
         const value = try item.value(allocator);
         try builder.append(value);
     }
-    if (it.err) |err| return err;
 
     var stream = io.fixedBufferStream(buf);
     try builder.dump(stream.writer());
