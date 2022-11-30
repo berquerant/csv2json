@@ -14,6 +14,7 @@ run:
 test:  # Run unit tests
 	zig test build.zig
 	zig build test
+	zig test src/e2e_test.zig
 
 tidy: requirements.txt  # Reinstall libs
 	./package.sh clean

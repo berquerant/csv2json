@@ -113,5 +113,4 @@ fn callback(buf: []u8, line: []const u8) anyerror![]const u8 {
 
 test {
     std.testing.refAllDecls(@This());
-    _ = @import("e2e_test.zig");
 }
