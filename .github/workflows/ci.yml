@@ -15,8 +15,11 @@ jobs:
         with:
           version: "0.10.1"
 
+      - name: Download packages
+        run: make tidy
+
       - name: Lint
-        run: zig fmt --check .
+        run: make lint
 
       - name: Test
-        run: zig build test
+        run: make test

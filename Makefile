@@ -23,3 +23,7 @@ tidy: requirements.txt  # Reinstall libs
 .PHONY: clean
 clean:
 	rm -rf zig-cache zig-out
+
+.PHONY: lint
+lint:
+	zig fmt --check .
